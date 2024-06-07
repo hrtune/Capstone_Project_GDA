@@ -1,0 +1,166 @@
+---
+title: Know Data
+author: Haruta Tasaki
+output: html_document
+---
+
+# Know Data
+
+## Which data to use
+Use data from Apr 12 to May 12 in 2016
+- dailyActivity
+- dailyCalories
+- dailyIntensities
+- dailySteps
+- heartrate_seconds
+- sleepDay
+- weightLogInfo
+
+## Import
+
+### Directory String
+```{r}
+dir_mar_apr <- "fitbit_dataset/20160312-20160411"
+dir_apr_may <- "fitbit_dataset/20160412-20160512"
+```
+
+### Use libraries
+
+Use readr
+```{r}
+library(readr)
+```
+
+Use dplyr
+```{r}
+library(dplyr)
+```
+
+Use purrr
+```{r}
+library(purrr)
+```
+
+Use zeallot
+```{r}
+library(zeallot)
+```
+
+
+### Map file names -> merged data
+
+Define map function and test
+```{r}
+file_to_data <- function(file) {
+    data <- read_csv(sprintf("%s/%s", dir_apr_may, file))
+    return(data)
+}
+
+test_data <- file_to_data("dailyActivity_merged.csv")
+str(test_data)
+```
+
+Import data and assign to variables
+```{r}
+daily_activity <- file_to_data("dailyActivity_merged.csv")
+daily_calories <- file_to_data("dailyCalories_merged.csv")
+daily_intensities <- file_to_data("dailyIntensities_merged.csv")
+daily_steps <- file_to_data("dailySteps_merged.csv")
+heartrate_seconds <- file_to_data("heartrate_seconds_merged.csv")
+sleep_day <- file_to_data("sleepDay_merged.csv")
+weight_log <- file_to_data("weightLogInfo_merged.csv")
+```
+
+
+## Know Columns
+Official Info:
+[fitabase Data Dictionary](https://storage.googleapis.com/kaggle-forum-message-attachments/2787666/20656/fitabasedatadictionary102320.pdf)
+
+### Daily activity
+Size: 940x15
+Columns:
+- Id: identification number of each user
+  - `1503960366`
+  - 10 digits
+- ActivityDate in mm/dd/YYYY
+  - `4/13/2016`
+  - date
+- TotalSteps
+  - `10735`
+- TotalDistance: total kilometers tracked
+  - `6.97`
+  - in kilometers
+  - TotalDistance = TrackerDistance + LoggedActivitiesDistance ??
+- TrackerDistance: total kilometers tracked by fitbit
+  - `6.97`
+  - in kilometers
+- LoggedActivitiesDistance: kilometers from logged
+  - max: `4.9421`
+  - min: `0`
+- VeryActiveDistance: kilometers when very active
+- ModeratelyActive: kilometers when moderately active
+- LightActiveDistance: kilometers when lightly active
+- SedentaryActiveDistance
+- VeryActiveMinutes
+- FairlyActiveMinutes: minutes during moderately active
+- LightlyActiveMinutes: total minutes spent in light activity
+- SedentaryMinutes
+- Calories: Total estimated energy expenditure in kilocalories
+  - integer
+
+### Daily calories
+```{r}
+View(daily_calories)
+```
+Columns:
+- Id
+- ActivityDate: mm/dd/YYYY
+- Calories: kilocalories?
+
+### Daily intensities
+```{r}
+View(daily_intensities)
+```
+- Id
+- ActivityDay (not -Date)
+- Sedentary, LightlyActive, FairlyActive, VeryActive Minutes
+- Sedentary, LightlyActive, FairlyActive, VeryActive Distance
+
+### Daily steps
+```{r}
+View(daily_steps)
+```
+- Id
+- ActivityDay
+- StepTotal
+
+### heartrate_seconds
+```{r}
+head(heartrate_seconds)
+tail(heartrate_seconds)
+```
+- Id
+- Time: arbitrary moment `mm/dd/YYYY hh:mm:ss (AM|PM)`
+- Value: in beats per minute (bpm)
+
+### Sleep day
+```{r}
+View(sleep_day)
+```
+- Id
+- SleepDay: date of record
+- TotalSleepRecords: num of sleep periods recorded
+- TotalMinutesAsleep
+- TotalTimeInBed: including asleep
+
+### Weight log
+```{r}
+View(weight_log)
+```
+- Id
+- Date
+- WeightKg
+- WeightPounds
+- Fat: body fat in %
+- BMI
+- LogId: unique log id

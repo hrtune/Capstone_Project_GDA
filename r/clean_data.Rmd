@@ -1,0 +1,333 @@
+---
+title: Clean Data
+author: Haruta Tasaki
+output: html_document
+---
+
+# Clean Data
+
+## Libraries
+
+Use libraries
+```{r}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(purrr)
+```
+
+## Helper Functions
+```{r}
+all_integer <- function(col) {
+    all(sapply(col, function(x) floor(x) == x))
+}
+```
+
+## Load Data
+
+Define Helpers
+```{r}
+dir <- "../fitbit_dataset/20160412-20160512"
+
+# Helper function
+file_to_data <- function(file) {
+    data <- read_csv(sprintf("%s/%s", dir, file))
+    return(data)
+}
+
+test_data <- file_to_data("dailyActivity_merged.csv")
+str(test_data)
+```
+
+Load
+```{r}
+daily_activity <- file_to_data("dailyActivity_merged.csv")
+heartrate_seconds <- file_to_data("heartrate_seconds_merged.csv")
+sleep_day <- file_to_data("sleepDay_merged.csv")
+weight_log <- file_to_data("weightLogInfo_merged.csv")
+```
+
+Organize as a vector
+```{r}
+datasets <- list(
+    daily_activity, heartrate_seconds, sleep_day, weight_log
+)
+```
+
+Check if loaded
+```{r}
+map(datasets, dim)
+```
+
+
+## Id Column
+
+Id column in all dataset has integers
+```{r}
+all_integer_id <- function(df) {
+    all_integer(df$Id)
+}
+map(datasets, all_integer_id)
+```
+- Since it doesn't show any error, all dataframes have an Id column
+
+## Date column
+
+Date columns have inconsistent names and formats among datasets:
+- daily_activity$ActivityDate: `4/12/2016`
+- sleep_day$sleepDay: `4/12/2016 12:00:00 AM`
+- weight_log$Date: `5/2/2016 11:59:59 PM`
+
+### Date of daily_activity
+has `4/12/2016` in "ActivityDate"
+
+Change to `2016-04-12` of column "Date"
+```{r}
+daily_activity_v2 <- mutate(daily_activity, Date = mdy(daily_activity$ActivityDate))
+```
+
+Drop the ActivityDate column
+```{r}
+daily_activity_v2 <- select(daily_activity_v2, -ActivityDate)
+```
+
+Check duplicates on date
+```{r}
+daily_activity_v2 |>
+    group_by(Id) |>
+    reframe(has_duplicate = any(duplicated(Date))) |>
+    select(has_duplicate) |>
+    any()
+```
+
+### Date of sleep_day
+has `4/12/2016 12:00:00 AM` in "SleepDay"
+
+Change format
+```{r}
+sleep_day_v2 <- mutate(sleep_day, Date = mdy_hms(sleep_day$SleepDay))
+```
+
+Drop the SleepDay
+```{r}
+sleep_day_v2 <- select(sleep_day_v2, -SleepDay)
+```
+
+Check duplicates on date
+```{r}
+duplicated_ids <- sleep_day_v2 |>
+    group_by(Id) |>
+    reframe(duplicated = any(duplicated(Date))) |>
+    filter(duplicated) |>
+    select(Id)
+duplicated_ids <- duplicated_ids$Id
+```
+
+Filter with those Ids and View
+```{r}
+duplicated_rows <- sleep_day_v2 |>
+    filter(Id %in% duplicated_ids) |>
+    group_by(Id) |>
+    filter(duplicated(Date))
+View(duplicated_rows)
+```
+
+Drop duplicated rows
+```{r}
+sleep_day_v3 <- sleep_day_v2 |> distinct()
+```
+
+Check if having duplicates
+```{r}
+# Number of duplication (should be 0)
+sleep_day_v3 |>
+    group_by(Id) |>
+    filter(any(duplicated(Date))) |>
+    nrow()
+```
+
+### Date of weight_log
+Weight doesn't really change during a day.
+So I drop data having same id with same date
+
+Format date, dropping time
+```{r}
+weight_log_v2 <- weight_log |>
+    mutate(Date = as_date(mdy_hms(Date)))
+View(weight_log_v2)
+```
+
+Check duplicates on date
+```{r}
+# Number of duplicates (must be 0)
+weight_log_v2 |>
+    group_by(Id) |>
+    filter(any(duplicated(Date))) |>
+    nrow()
+```
+
+There are no duplicates, so it's done.
+
+### Assign back to original variables
+```{r}
+daily_activity <- daily_activity_v2
+sleep_day <- sleep_day_v3
+weight_log <- weight_log_v2
+```
+
+## Clean daily_activity
+
+### Sedentary active distance
+The column "SedentaryActiveDistance" can be dropped because it's trivial.
+```{r}
+daily_activity |>
+    filter(SedentaryActiveDistance > 0.15) |>
+    nrow()
+```
+
+Drop the column
+```{r}
+daily_activity_v2 <- select(daily_activity, -SedentaryActiveDistance)
+```
+
+### Total distance and Tracker distance
+Total distance and tracker distances have similar values.
+```{r}
+diff_vec <- daily_activity_v2$TotalDistance - daily_activity_v2$TrackerDistance
+max(diff_vec)
+min(diff_vec)
+mean(diff_vec)
+```
+
+Drop TrackerDistance
+```{r}
+daily_activity_v3 <- daily_activity_v2 |>
+    select(-TrackerDistance)
+```
+
+### LoggedActivitiesDistance
+
+The column is trivial
+```{r}
+daily_activity_v3 |>
+    summarise(
+        max = max(LoggedActivitiesDistance),
+        min = min(LoggedActivitiesDistance),
+        mean = mean(LoggedActivitiesDistance)
+    )
+```
+
+Drop the column
+```{r}
+daily_activity_v4 <- daily_activity_v3 |>
+    select(-LoggedActivitiesDistance)
+colnames(daily_activity_v4)
+```
+
+Assign back to daily_activity
+```{r}
+daily_activity <- daily_activity_v4
+```
+
+
+## Clean sleep_day
+
+Summarize TotalMinutesAsleep
+```{r}
+sleep_day |>
+    summarise(
+        max = max(TotalMinutesAsleep),
+        min = min(TotalMinutesAsleep),
+        mean = mean(TotalMinutesAsleep),
+        mean_hour = mean(TotalMinutesAsleep) / 60
+    )
+```
+
+Summarize TotalTimeInBed
+```{r}
+sleep_day |>
+    summarise(
+        max = max(TotalTimeInBed),
+        min = min(TotalTimeInBed),
+        mean = mean(TotalTimeInBed)
+    )
+```
+
+
+
+## Clean heartrate_seconds
+
+Summarize heartrate value
+```{r}
+heartrate_seconds |>
+    summarise(
+        max = max(Value),
+        min = min(Value),
+        mean = mean(Value)
+    )
+```
+
+### Format Time column
+
+Add column of formatted time
+```{r}
+heartrate_seconds_v2 <- heartrate_seconds |>
+    mutate(Time_v2 = as_datetime(mdy_hms(Time)))
+glimpse(heartrate_seconds_v2)
+```
+
+Replace Time with formatted time
+```{r}
+heartrate_seconds_v3 <- heartrate_seconds_v2 |>
+    select(-Time) |>
+    rename(Time = Time_v2)
+glimpse(heartrate_seconds_v3)
+```
+
+Assign back to original variable
+```{r}
+heartrate_seconds <- heartrate_seconds_v3
+```
+
+
+## Clean weight_log
+
+Check duplicates on date for the same person
+```{r}
+weight_log |>
+    group_by(Id) |>
+    summarise(duplicated = any(duplicated(Date)))
+```
+
+Summarize WeightKg
+```{r}
+weight_log |>
+  summarise(
+    max = max(WeightKg),
+    min = min(WeightKg),
+    mean = mean(WeightKg)
+  )
+```
+
+Summarise BMI
+```{r}
+weight_log |>
+  summarise(
+    max = max(BMI),
+    min = min(BMI),
+    mean = mean(BMI)
+  )
+```
+
+## Output cleaned data
+```{r}
+write_csv(daily_activity, "../cleaned_data/daily_activity.csv")
+write_csv(heartrate_seconds, "../cleaned_data/heartrate_seconds.csv")
+write_csv(sleep_day, "../cleaned_data/sleep_day.csv")
+write_csv(weight_log, "../cleaned_data/weight_log.csv")
+```
+
+
+
+
+
