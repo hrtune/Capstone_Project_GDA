@@ -201,6 +201,8 @@ num_sleep_day <- sleep_day |>
     Count = n()
   )
 
+num_sleep_day
+
 ggplot(num_sleep_day, aes(x = "", y = Count, fill = NumSleep)) +
   geom_col() +
   coord_polar(theta = "y") +
