@@ -16,3 +16,11 @@ Data source in this repository:
     - `heartrate_seconds_merged.csv`
     - `sleepDay_merged.csv`
     - `weightLogInfo_merged.csv`
+
+## Data Cleaning Process
+1. Check if all relevant datasets have Id column.
+2. Format each Date columnn to have the same name "Date" and same format.
+   1. Format: "YYYY-mm-dd" or "YYYY-mm-dd hh:mm:ss" where hh is in 24h notation.
+3. Drop irrelevant columns.
+4. Drop duplicated rows.
+5. Save cleaned data to `cleaned_data`

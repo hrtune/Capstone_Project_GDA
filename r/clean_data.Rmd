@@ -284,6 +284,17 @@ heartrate_seconds_v3 <- heartrate_seconds_v2 |>
 glimpse(heartrate_seconds_v3)
 ```
 
+### Drop Duplicates
+
+```{r}
+heart_rate_seconds_v4 <- heartrate_seconds_v3 |>
+  group_by(Id) |>
+  distinct(Time)
+nrow(heartrate_seconds_v3)
+nrow(heart_rate_seconds_v4)
+```
+
+
 Assign back to original variable
 ```{r}
 heartrate_seconds <- heartrate_seconds_v3
